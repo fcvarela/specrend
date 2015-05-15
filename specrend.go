@@ -4,17 +4,22 @@ package specrend
 
 import "math"
 
+// Vec2d is a two-dimensional float64 vector
 type Vec2d struct {
 	X float64
 	Y float64
 }
 
+// Vec3d is a three-dimensional float64 vector
 type Vec3d struct {
 	X float64
 	Y float64
 	Z float64
 }
 
+// ColorSystem is defined by the CIE x and y coordinates of
+// its three primary illuminants and the x and y coordinates of
+// the white point.
 type ColorSystem struct {
 	Name  string
 	Red   Vec2d
@@ -29,21 +34,21 @@ var (
 	IlluminantC   = Vec2d{0.3101, 0.3162}
 	IlluminantD65 = Vec2d{0.3127, 0.3291}
 	IlluminantE   = Vec2d{1.0 / 3.0, 1.0 / 3.0}
-	GAMMA_REC709  = float64(0.0)
+	GammaRec709   = float64(0.0)
 )
 
 // Colorsystems
 var (
-	NTSCSystem   = ColorSystem{"NTSC", Vec2d{0.67, 0.33}, Vec2d{0.21, 0.71}, Vec2d{0.14, 0.08}, IlluminantC, GAMMA_REC709}
-	EBUSystem    = ColorSystem{"EBU", Vec2d{0.64, 0.33}, Vec2d{0.29, 0.60}, Vec2d{0.15, 0.06}, IlluminantD65, GAMMA_REC709}
-	SMPTEsystem  = ColorSystem{"SMPTE", Vec2d{0.630, 0.340}, Vec2d{0.310, 0.595}, Vec2d{0.155, 0.070}, IlluminantD65, GAMMA_REC709}
-	HDTVsystem   = ColorSystem{"HDTV", Vec2d{0.670, 0.330}, Vec2d{0.210, 0.710}, Vec2d{0.150, 0.060}, IlluminantD65, GAMMA_REC709}
-	CIEsystem    = ColorSystem{"CIE", Vec2d{0.7355, 0.2645}, Vec2d{0.2658, 0.7243}, Vec2d{0.1669, 0.0085}, IlluminantE, GAMMA_REC709}
-	Rec709system = ColorSystem{"CIE REC 709", Vec2d{0.64, 0.33}, Vec2d{0.30, 0.60}, Vec2d{0.15, 0.06}, IlluminantD65, GAMMA_REC709}
+	NTSCSystem   = ColorSystem{"NTSC", Vec2d{0.67, 0.33}, Vec2d{0.21, 0.71}, Vec2d{0.14, 0.08}, IlluminantC, GammaRec709}
+	EBUSystem    = ColorSystem{"EBU", Vec2d{0.64, 0.33}, Vec2d{0.29, 0.60}, Vec2d{0.15, 0.06}, IlluminantD65, GammaRec709}
+	SMPTEsystem  = ColorSystem{"SMPTE", Vec2d{0.630, 0.340}, Vec2d{0.310, 0.595}, Vec2d{0.155, 0.070}, IlluminantD65, GammaRec709}
+	HDTVsystem   = ColorSystem{"HDTV", Vec2d{0.670, 0.330}, Vec2d{0.210, 0.710}, Vec2d{0.150, 0.060}, IlluminantD65, GammaRec709}
+	CIEsystem    = ColorSystem{"CIE", Vec2d{0.7355, 0.2645}, Vec2d{0.2658, 0.7243}, Vec2d{0.1669, 0.0085}, IlluminantE, GammaRec709}
+	Rec709system = ColorSystem{"CIE REC 709", Vec2d{0.64, 0.33}, Vec2d{0.30, 0.60}, Vec2d{0.15, 0.06}, IlluminantD65, GammaRec709}
 )
 
 // spectum to xyz aux table
-var cie_colour_match [81][3]float64 = [81][3]float64{
+var cieColourMatch = [81][3]float64{
 	{0.0014, 0.0000, 0.0065}, {0.0022, 0.0001, 0.0105}, {0.0042, 0.0001, 0.0201},
 	{0.0076, 0.0002, 0.0362}, {0.0143, 0.0004, 0.0679}, {0.0232, 0.0006, 0.1102},
 	{0.0435, 0.0012, 0.2074}, {0.0776, 0.0022, 0.3713}, {0.1344, 0.0040, 0.6456},
@@ -73,39 +78,38 @@ var cie_colour_match [81][3]float64 = [81][3]float64{
 	{0.0001, 0.0000, 0.0000}, {0.0001, 0.0000, 0.0000}, {0.0000, 0.0000, 0.0000},
 }
 
-// Given 1976 coordinates u', v', determine 1931 chromaticities x, y
-func (upvp Vec2d) XY() Vec2d {
+// XY will determine 1931 chromaticities x, y from 1976 coordinates u', v'
+func (src Vec2d) XY() Vec2d {
 	return Vec2d{
-		(9 * upvp.X) / ((6 * upvp.X) - (16 * upvp.Y) + 12),
-		(9 * upvp.Y) / ((6 * upvp.Y) - (16 * upvp.Y) + 12),
+		(9 * src.X) / ((6 * src.X) - (16 * src.Y) + 12),
+		(9 * src.Y) / ((6 * src.Y) - (16 * src.Y) + 12),
 	}
 }
 
-// Given 1931 chromaticities x, y, determine 1976 coordinates u', v'
-func (xcyc Vec2d) UpVp() Vec2d {
+// UpVp will determine 1976 coordinates u', v' from 1931 chromaticities x, y
+func (src Vec2d) UpVp() Vec2d {
 	return Vec2d{
-		(4 * xcyc.X) / ((-2 * xcyc.X) + (12 * xcyc.Y) + 3),
-		(9 * xcyc.Y) / ((-2 * xcyc.X) + (12 * xcyc.Y) + 3),
+		(4 * src.X) / ((-2 * src.X) + (12 * src.Y) + 3),
+		(9 * src.Y) / ((-2 * src.X) + (12 * src.Y) + 3),
 	}
 
 }
 
-/*
-	Given an additive tricolour system CS, defined by the CIE x
-	and y chromaticities of its three primaries (z is derived
-	trivially as 1-(x+y)), and a desired chromaticity (XC, YC,
-	ZC) in CIE space, determine the contribution of each
-	primary in a linear combination which sums to the desired
-	chromaticity.  If the  requested chromaticity falls outside
-	the Maxwell  triangle (colour gamut) formed by the three
-	primaries, one of the r, g, or b weights will be negative.
-
-	Caller can use Vec3d.ConstrainRGB() to desaturate an
-	outside-gamut colour to the closest representation within
-	the available gamut and/or norm_rgb to normalise the RGB
-	components so the largest nonzero component has value 1.
-*/
-func (xyz Vec3d) RGB(cs *ColorSystem) Vec3d {
+// RGB computes RGB components from XYZ on a ColorSystem:
+// Given an additive tricolour system CS, defined by the CIE x
+// and y chromaticities of its three primaries (z is derived
+// trivially as 1-(x+y)), and a desired chromaticity (XC, YC,
+// ZC) in CIE space, determine the contribution of each
+// primary in a linear combination which sums to the desired
+// chromaticity.  If the  requested chromaticity falls outside
+// the Maxwell  triangle (colour gamut) formed by the three
+// primaries, one of the r, g, or b weights will be negative.
+//
+// Caller can use Vec3d.ConstrainRGB() to desaturate an
+// outside-gamut colour to the closest representation within
+// the available gamut and/or norm_rgb to normalise the RGB
+// components so the largest nonzero component has value 1.
+func (src Vec3d) RGB(cs *ColorSystem) Vec3d {
 	var xr, yr, zr, xg, yg, zg, xb, yb, zb float64
 	var xw, yw, zw float64
 	var rx, ry, rz, gx, gy, gz, bx, by, bz float64
@@ -154,131 +158,115 @@ func (xyz Vec3d) RGB(cs *ColorSystem) Vec3d {
 
 	/* rgb of the desired point */
 	return Vec3d{
-		(rx * xyz.X) + (ry * xyz.Y) + (rz * xyz.Z),
-		(gx * xyz.X) + (gy * xyz.Y) + (gz * xyz.Z),
-		(bx * xyz.X) + (by * xyz.Y) + (bz * xyz.Z),
+		(rx * src.X) + (ry * src.Y) + (rz * src.Z),
+		(gx * src.X) + (gy * src.Y) + (gz * src.Z),
+		(bx * src.X) + (by * src.Y) + (bz * src.Z),
 	}
 }
 
-/*
-	InsideGamut tests whether a requested colour is within the gamut
-	achievable with the primaries of the current colour
-	system.  This amounts simply to testing whether all the
-	primary weights are non-negative. */
-func (rgb Vec3d) InsideGamut() bool {
-	if rgb.X >= 0 && rgb.Y >= 0 && rgb.Z >= 0.0 {
+// InsideGamut tests whether a requested colour is within the gamut
+// achievable with the primaries of the current colour
+// system.  This amounts simply to testing whether all the
+// primary weights are non-negative.
+func (src Vec3d) InsideGamut() bool {
+	if src.X >= 0 && src.Y >= 0 && src.Z >= 0.0 {
 		return true
 	}
 	return false
 }
 
-/*
-	If the requested RGB shade contains a negative weight for
-	one of the primaries, it lies outside the colour gamut
-	accessible from the given triple of primaries.  Desaturate
-	it by adding white, equal quantities of R, G, and B, enough
-	to make RGB all positive.*/
-func (rgb Vec3d) ConstrainRGB() Vec3d {
+// ConstrainRGB desaturates a color until it lies inside a color gamut
+// If the requested RGB shade contains a negative weight for
+// one of the primaries, it lies outside the colour gamut
+// accessible from the given triple of primaries.  Desaturate
+// it by adding white, equal quantities of R, G, and B, enough
+// to make RGB all positive.
+func (src Vec3d) ConstrainRGB() Vec3d {
 	var w float64
 
 	/* Amount of white needed is w = - min(0, *r, *g, *b) */
-	if 0.0 < rgb.X {
+	if 0.0 < src.X {
 		w = 0.0
 	} else {
-		w = rgb.X
+		w = src.X
 	}
 
-	if w >= rgb.Y {
-		w = rgb.Y
+	if w >= src.Y {
+		w = src.Y
 	}
 
-	if w >= rgb.Z {
-		w = rgb.Z
+	if w >= src.Z {
+		w = src.Z
 	}
 
 	w = -w
 
 	/* Add just enough white to make r, g, b all positive. */
 	if w > 0 {
-		return Vec3d{rgb.X + w, rgb.Y + w, rgb.Z + w}
+		return Vec3d{src.X + w, src.Y + w, src.Z + w}
 	}
-	return rgb
+	return src
 }
 
 // Corrects a single color component
 func gammaCorrectColorComponent(cs *ColorSystem, c float64) float64 {
 	gamma := cs.Gamma
 
-	if gamma == GAMMA_REC709 {
-		/* Rec. 709 gamma correction. */
-		var cc float64 = 0.018
+	if gamma == GammaRec709 {
+		// Rec. 709 gamma correction.
+		cc := 0.018
 		if c < cc {
 			return ((1.099 * math.Pow(cc, 0.45)) - 0.099) / cc
-		} else {
-			return (1.099 * math.Pow(c, 0.45)) - 0.099
 		}
-	} else {
-		/* Nonlinear colour = (Linear colour)^(1/gamma) */
-		return math.Pow(c, 1.0/gamma)
+		return (1.099 * math.Pow(c, 0.45)) - 0.099
 	}
+	// Nonlinear colour = (Linear colour)^(1/gamma)
+	return math.Pow(c, 1.0/gamma)
 }
 
-/*
-	Transform linear RGB values to nonlinear RGB values. Rec.
-	709 is ITU-R Recommendation BT. 709 (1990) ``Basic
-	Parameter Values for the HDTV Standard for the Studio and
-	for International Programme Exchange'', formerly CCIR Rec.
-	709. For details see http://www.poynton.com/ColorFAQ.html and
-	http://www.poynton.com/GammaFAQ.html
-*/
-func (rgb Vec3d) GammaCorrect(cs *ColorSystem) Vec3d {
+// GammaCorrect transforms linear RGB values to nonlinear
+func (src Vec3d) GammaCorrect(cs *ColorSystem) Vec3d {
 	return Vec3d{
-		gammaCorrectColorComponent(cs, rgb.X),
-		gammaCorrectColorComponent(cs, rgb.Y),
-		gammaCorrectColorComponent(cs, rgb.Z),
+		gammaCorrectColorComponent(cs, src.X),
+		gammaCorrectColorComponent(cs, src.Y),
+		gammaCorrectColorComponent(cs, src.Z),
 	}
 
 }
 
 // NormalizeRGB normalises RGB components so the most intense (unless all are zero) has a value of 1.
-func (rgb Vec3d) NormalizeRGB() Vec3d {
-	greatest := math.Max(rgb.X, math.Max(rgb.Y, rgb.Z))
+func (src Vec3d) NormalizeRGB() Vec3d {
+	greatest := math.Max(src.X, math.Max(src.Y, src.Z))
 
 	if greatest > 0.0 {
-		return Vec3d{
-			rgb.X / greatest,
-			rgb.Y / greatest,
-			rgb.Z / greatest,
-		}
+		return Vec3d{src.X / greatest, src.Y / greatest, src.Z / greatest}
 	}
 
-	return rgb
+	return src
 }
 
-/*
-	Calculate the CIE X, Y, and Z coordinates corresponding to
-	a light source with spectral distribution given by  the
-	function SPEC_INTENS, which is called with a series of
-	wavelengths between 380 and 780 nm (the argument is
-	expressed in meters), which returns emittance at  that
-	wavelength in arbitrary units.  The chromaticity
-	coordinates of the spectrum are returned in the x, y, and z
-	arguments which respect the identity: x + y + z = 1.
-*/
-func SpectrumToXYZ(temperature float64, spec_intens func(temperature float64, wavelength float64) float64) Vec3d {
-	var X, Y, Z float64
+// SpectrumToXYZ computes XYZ CIE coordinates corresponding to
+// a light source with spectral distribution given by  the
+// function SPEC_INTENS, which is called with a series of
+// wavelengths between 380 and 780 nm (the argument is
+// expressed in meters), which returns emittance at  that
+// wavelength in arbitrary units.  The chromaticity
+// coordinates of the spectrum are returned in the x, y, and z
+// arguments which respect the identity: x + y + z = 1.
+func SpectrumToXYZ(temperature float64, specIntens func(temperature float64, wavelength float64) float64) Vec3d {
+	var x, y, z float64
 
 	for i, lambda := 0, 380.0; lambda < 780.1; i, lambda = i+1, lambda+5 {
-		Me := spec_intens(temperature, lambda)
-		X += Me * cie_colour_match[i][0]
-		Y += Me * cie_colour_match[i][1]
-		Z += Me * cie_colour_match[i][2]
+		Me := specIntens(temperature, lambda)
+		x += Me * cieColourMatch[i][0]
+		y += Me * cieColourMatch[i][1]
+		z += Me * cieColourMatch[i][2]
 	}
-	XYZ := (X + Y + Z)
+	xyz := (x + y + z)
 	return Vec3d{
-		X / XYZ,
-		Y / XYZ,
-		Z / XYZ,
+		x / xyz,
+		y / xyz,
+		z / xyz,
 	}
 }
 
