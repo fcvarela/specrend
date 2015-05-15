@@ -72,7 +72,7 @@ func TestAll(t *testing.T) {
 		refXYZ := expectedXYZ[temp]
 		diffX, diffY, diffZ := math.Abs(refXYZ.X-xyz.X), math.Abs(refXYZ.Y-xyz.Y), math.Abs(refXYZ.Z-xyz.Z)
 		if diffX > 0.0001 || diffY > 0.0001 || diffZ > 0.0001 {
-			assert.Fail(t, "")
+			assert.Fail(t, "Computed XYZ does not match expected value")
 		}
 	}
 }
