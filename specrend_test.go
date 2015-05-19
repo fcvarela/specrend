@@ -57,19 +57,22 @@ func init() {
 	expectedRGB[10000] = Vec3d{0.602, 0.693, 1.000}
 }
 
-func TestAll(t *testing.T) {
+func TestRGB(t *testing.T) {
 	cs := SMPTEsystem
 
-	for temp := float64(1000); temp <= 10000; temp += 500 {
+	for temp, refRGB := range expectedRGB {
 		xyz := SpectrumToXYZ(temp, BBSpectrum)
 		rgb := xyz.RGB(&cs).ConstrainRGB().NormalizeRGB()
 
-		refRGB := expectedRGB[temp]
 		tstVal := fmt.Sprintf("%.3f %.3f %.3f", rgb.X, rgb.Y, rgb.Z)
 		refVal := fmt.Sprintf("%.3f %.3f %.3f", refRGB.X, refRGB.Y, refRGB.Z)
 		assert.Equal(t, tstVal, refVal, "")
+	}
+}
 
-		refXYZ := expectedXYZ[temp]
+func TestXYZ(t *testing.T) {
+	for temp, refXYZ := range expectedXYZ {
+		xyz := SpectrumToXYZ(temp, BBSpectrum)
 		diffX, diffY, diffZ := math.Abs(refXYZ.X-xyz.X), math.Abs(refXYZ.Y-xyz.Y), math.Abs(refXYZ.Z-xyz.Z)
 		if diffX > 0.0001 || diffY > 0.0001 || diffZ > 0.0001 {
 			assert.Fail(t, "Computed XYZ does not match expected value")
