@@ -270,9 +270,9 @@ func SpectrumToXYZ(temperature float64, specIntens func(temperature float64, wav
 	}
 }
 
-// BBSpectrum calculates, by Planck's radiation law, the emittance
-// of a black body of temperature bbTemp at the given wavelength (in metres).
-func BBSpectrum(temperature float64, wavelength float64) float64 {
+// BlackBodySpectrum calculates, by Planck's radiation law, the emittance
+// of a black body of temperature `temperature` Kelvin and wavelength `wavelength` metres.
+func BlackBodySpectrum(temperature float64, wavelength float64) float64 {
 	wlm := wavelength * 1e-9
 	return (3.74183e-16 * math.Pow(wlm, -5.0)) / (math.Exp(1.4388e-2/(wlm*temperature)) - 1.0)
 }

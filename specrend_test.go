@@ -61,7 +61,7 @@ func TestRGB(t *testing.T) {
 	cs := SMPTEsystem
 
 	for temp, refRGB := range expectedRGB {
-		xyz := SpectrumToXYZ(temp, BBSpectrum)
+		xyz := SpectrumToXYZ(temp, BlackBodySpectrum)
 		rgb := xyz.RGB(&cs).ConstrainRGB().NormalizeRGB()
 
 		tstVal := fmt.Sprintf("%.3f %.3f %.3f", rgb.X, rgb.Y, rgb.Z)
@@ -72,7 +72,7 @@ func TestRGB(t *testing.T) {
 
 func TestXYZ(t *testing.T) {
 	for temp, refXYZ := range expectedXYZ {
-		xyz := SpectrumToXYZ(temp, BBSpectrum)
+		xyz := SpectrumToXYZ(temp, BlackBodySpectrum)
 		diffX, diffY, diffZ := math.Abs(refXYZ.X-xyz.X), math.Abs(refXYZ.Y-xyz.Y), math.Abs(refXYZ.Z-xyz.Z)
 		if diffX > 0.0001 || diffY > 0.0001 || diffZ > 0.0001 {
 			assert.Fail(t, "Computed XYZ does not match expected value")
