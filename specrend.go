@@ -78,6 +78,12 @@ var cieColourMatch = [81][3]float64{
 	{0.0001, 0.0000, 0.0000}, {0.0001, 0.0000, 0.0000}, {0.0000, 0.0000, 0.0000},
 }
 
+var blackBodyLookup map[float64]Vec3d
+
+func init() {
+	blackBodyLookup = make(map[float64]Vec3d)
+}
+
 // XY will determine 1931 chromaticities x, y from 1976 coordinates u', v'
 func (src Vec2d) XY() Vec2d {
 	return Vec2d{
@@ -263,11 +269,26 @@ func SpectrumToXYZ(temperature float64, specIntens func(temperature float64, wav
 		z += Me * cieColourMatch[i][2]
 	}
 	xyz := (x + y + z)
+
 	return Vec3d{
 		x / xyz,
 		y / xyz,
 		z / xyz,
 	}
+}
+
+// BlackBodySpectrumToRGB returns the SpectrumToXYZ output with the BlackBodySpectrum function
+// restricted and normalized. it also caches results to minimise computaton time
+func BlackBodySpectrumToRGB(temperature float64) Vec3d {
+	// try lookup
+	if val, ok:=blackBodyLookup[temperature]; ok == true{
+		return val
+	}
+
+	val := SpectrumToXYZ(temperature, BlackBodySpectrum)
+	val = val.RGB(&SMPTEsystem).ConstrainRGB().NormalizeRGB()
+	blackBodyLookup[temperature] = val
+	return val
 }
 
 // BlackBodySpectrum calculates, by Planck's radiation law, the emittance
